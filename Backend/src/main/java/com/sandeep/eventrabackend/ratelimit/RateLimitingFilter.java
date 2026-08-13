@@ -1,5 +1,6 @@
 package com.sandeep.eventrabackend.ratelimit;
 
+import com.sandeep.eventrabackend.config.RateLimitProperties;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,9 +18,11 @@ import java.time.Duration;
 public class RateLimitingFilter extends OncePerRequestFilter {
 
     private final RateLimitService rateLimitService;
+    private final RateLimitProperties properties;
 
-    public RateLimitingFilter(RateLimitService rateLimitService) {
+    public RateLimitingFilter(RateLimitService rateLimitService, RateLimitProperties properties) {
         this.rateLimitService = rateLimitService;
+        this.properties = properties;
     }
 
     @Override
@@ -28,15 +31,20 @@ public class RateLimitingFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        if (!properties.isEnabled()) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String path = request.getRequestURI();
         String clientIp = getClientIp(request);
 
         // FIX (#13902): SSE stream reconnects use an isolated high-capacity bucket
         if (path != null && path.startsWith("/api/stream/")) {
             RateLimitResult result = rateLimitService.consume("sse-stream", clientIp, 1000, Duration.ofMinutes(1));
-            if (!result.isAllowed()) {
+            if (!result.allowed()) {
                 response.setStatus(429);
-                response.setHeader("Retry-After", String.valueOf(result.getRetryAfterSeconds()));
+                response.setHeader("Retry-After", String.valueOf(result.retryAfterSeconds()));
                 response.getWriter().write("Too many SSE reconnection pings.");
                 return;
             }
@@ -46,9 +54,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
         // Standard REST API Rate Limiting Bucket
         RateLimitResult result = rateLimitService.consume("rest-api", clientIp, 100, Duration.ofMinutes(1));
-        if (!result.isAllowed()) {
+        if (!result.allowed()) {
             response.setStatus(429);
-            response.setHeader("Retry-After", String.valueOf(result.getRetryAfterSeconds()));
+            response.setHeader("Retry-After", String.valueOf(result.retryAfterSeconds()));
             response.getWriter().write("Rate limit exceeded. Please try again later.");
             return;
         }
