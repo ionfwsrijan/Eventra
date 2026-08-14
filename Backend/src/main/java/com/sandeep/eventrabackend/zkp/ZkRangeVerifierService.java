@@ -14,14 +14,22 @@ import java.security.MessageDigest;
 public class ZkRangeVerifierService {
 
     /**
-     * Verify range proof: H(Age + Salt) matches the committed value.
+     * Verify range proof: the SHA-256 commitment must match {@code H(proofValue + salt)}
+     * AND {@code proofValue} must fall within {@code [minValue, maxValue]}.
+     * Without the bounds check any forged value whose hash matches the commitment
+     * would be accepted, which provides no range guarantee at all.
      */
-    public boolean verifyRangeProof(String commitment, String proofValue, String salt) {
-        if (commitment == null || proofValue == null || salt == null) {
+    public boolean verifyRangeProof(String commitment, String proofValue, String salt, long minValue, long maxValue) {
+        if (commitment == null || proofValue == null || salt == null || minValue > maxValue) {
             return false;
         }
 
         try {
+            long value = Long.parseLong(proofValue.trim());
+            if (value < minValue || value > maxValue) {
+                return false;
+            }
+
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             String input = proofValue + salt;
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
