@@ -288,6 +288,32 @@ public class AuthService {
                 "message", "If an account exists for that email, a password reset link has been sent.");
     }
 
+    /**
+     * Redeems a raw password-reset token: validates it is unexpired and unused,
+     * updates the account password, and atomically marks the token consumed.
+     */
+    @Transactional
+    public Map<String, String> confirmPasswordReset(String rawToken, String newPassword) {
+        String tokenHash = hashToken(rawToken);
+        PasswordResetToken resetToken = passwordResetTokenRepository
+                .findByTokenHashAndUsedFalse(tokenHash)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Invalid, expired or already-used password reset token."));
+
+        if (resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("This password reset token has expired. Please request a new one.");
+        }
+
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.save(resetToken);
+
+        return Map.of("message", "Your password has been reset successfully.");
+    }
+
     private String generateResetToken() {
         SecureRandom secureRandom = new SecureRandom();
         byte[] bytes = new byte[RESET_TOKEN_BYTE_LENGTH];

@@ -6,6 +6,7 @@ import com.sandeep.eventrabackend.dto.request.GoogleAuthRequest;
 import com.sandeep.eventrabackend.dto.request.LogoutRequest;
 import com.sandeep.eventrabackend.dto.request.ReauthRequest;
 import com.sandeep.eventrabackend.dto.request.ResetPasswordRequest;
+import com.sandeep.eventrabackend.dto.request.ConfirmPasswordResetRequest;
 import com.sandeep.eventrabackend.dto.response.AuthResponse;
 import com.sandeep.eventrabackend.dto.response.ErrorResponse;
 import com.sandeep.eventrabackend.security.AuthCookieHelper;
@@ -154,6 +155,27 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request) {
         return ResponseEntity.ok(authService.requestPasswordReset(request.getEmail()));
+    }
+
+    @PostMapping("/reset-password/confirm")
+    @SecurityRequirements   // no auth needed for this endpoint
+    @Operation(
+            summary = "Redeem a password reset token",
+            description = """
+                    Validates the single-use, expiring reset token delivered out-of-band,
+                    updates the account's password, and marks the token consumed.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Password updated successfully",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid, expired or already-used token, or invalid password",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<Map<String, String>> confirmPasswordReset(
+            @Valid @RequestBody ConfirmPasswordResetRequest request) {
+        return ResponseEntity.ok(authService.confirmPasswordReset(
+                request.getToken(), request.getNewPassword()));
     }
 
     @PostMapping("/google")
