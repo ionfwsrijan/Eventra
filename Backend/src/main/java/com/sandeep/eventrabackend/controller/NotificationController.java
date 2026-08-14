@@ -257,6 +257,8 @@ public class NotificationController {
             @Valid @RequestBody SaveTemplateRequest request,
             Authentication authentication) {
         String organizerEmail = authentication.getName();
+        Long eventId = Long.parseLong(request.getEventId());
+        eventRoleService.requireRole(eventId, organizerEmail, EventRole.ORGANIZER);
         return ResponseEntity.ok(emailTemplateService.saveTemplate(request, organizerEmail));
     }
 
@@ -289,6 +291,7 @@ public class NotificationController {
             @PathVariable String templateType,
             Authentication authentication) {
         String organizerEmail = authentication.getName();
+        eventRoleService.requireRole(Long.parseLong(eventId), organizerEmail, EventRole.ORGANIZER);
         return ResponseEntity.ok(emailTemplateService.getTemplate(String.valueOf(eventId), templateType, organizerEmail));
     }
 }
