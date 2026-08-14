@@ -1,6 +1,8 @@
 package com.sandeep.eventrabackend.zkp;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -8,8 +10,15 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/zkp")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "${app.cors.allowed-origins}")
+@PreAuthorize("isAuthenticated()")
 public class ZkVerificationController {
+
+    @Value("${app.zkp.range.min-inclusive:18}")
+    private int minInclusive;
+
+    @Value("${app.zkp.range.max-inclusive:120}")
+    private int maxInclusive;
 
     private final ZkRangeVerifierService verifierService;
 
@@ -37,7 +46,9 @@ public class ZkVerificationController {
         boolean isValid = verifierService.verifyRangeProof(
                 request.getCommitment(),
                 request.getProofValue(),
-                request.getSalt()
+                request.getSalt(),
+                minInclusive,
+                maxInclusive
         );
 
         Map<String, Object> response = new HashMap<>();
