@@ -1,7 +1,9 @@
 package com.sandeep.eventrabackend.config;
 
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
@@ -16,7 +18,12 @@ import java.util.Map;
 @Converter
 public class JsonMapAttributeConverter implements AttributeConverter<Map<String, Object>, String> {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder()
+            .streamReadConstraints(StreamReadConstraints.builder()
+                    .maxNestingDepth(20)
+                    .maxStringLength(1_000_000)
+                    .build())
+            .build();
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
 
@@ -40,7 +47,7 @@ public class JsonMapAttributeConverter implements AttributeConverter<Map<String,
         try {
             return OBJECT_MAPPER.readValue(dbData, MAP_TYPE);
         } catch (Exception e) {
-            return new HashMap<>();
+            throw new IllegalArgumentException("Invalid JSON for preferences column", e);
         }
     }
 }
