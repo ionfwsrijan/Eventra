@@ -1,37 +1,5 @@
 import { apiUtils, API_ENDPOINTS } from "../config/api";
 
-/**
- * Normalises a raw HackathonResponse from the backend into the shape
- * expected by HackathonPage / HackathonCard.
- *
- * Backend fields  →  UI fields
- *  startDate/endDate  → status ("live" | "upcoming" | "completed")
- *  prizePool (string) → prize  (kept as-is; filter util parses digits)
- */
-const normalizeHackathon = (h) => {
-  const now = Date.now();
-  const start = h.startDate ? new Date(h.startDate).getTime() : null;
-  const end = h.endDate ? new Date(h.endDate).getTime() : null;
-
-  let status = "upcoming";
-  if (start && end) {
-    if (now >= start && now <= end) status = "live";
-    else if (now > end) status = "completed";
-  }
-
-  return {
-    ...h,
-    // computed
-    status,
-    // alias: filter util reads hackathon.prize
-    prize: h.prize ?? h.prizePool ?? null,
-    // alias: card reads hackathon.date as a fallback
-    date: h.startDate ?? h.date ?? null,
-    // techStack not in API yet — default to empty
-    techStack: h.techStack ?? [],
-  };
-};
-
 // ============================================================================
 // 1. CONFIGURATION & CACHE STATE MANAGEMENT
 // ============================================================================
@@ -101,9 +69,9 @@ export const normalizeHackathon = (item = {}, index = 0) => {
   // Calculate dynamic status based on start and end dates
   let calculatedStatus = item.status || "upcoming";
   if (now >= startDate && now <= endDate) {
-    calculatedStatus = "ongoing";
+    calculatedStatus = "live";
   } else if (now > endDate) {
-    calculatedStatus = "ended";
+    calculatedStatus = "completed";
   } else if (now < startDate) {
     calculatedStatus = "upcoming";
   }
@@ -123,6 +91,9 @@ export const normalizeHackathon = (item = {}, index = 0) => {
     mode: (item.mode || item.locationType || "online").toLowerCase(), // 'online', 'in-person', 'hybrid'
     location: item.location || (item.mode === "online" ? "Global / Remote" : "TBD"),
     prizePool: typeof item.prizePool === "number" ? item.prizePool : parseFloat(item.prizePool || 0),
+    prize: item.prize ?? item.prizePool ?? null,
+    date: item.startDate ?? item.date ?? null,
+    techStack: item.techStack ?? [],
     currency: item.currency || "USD",
     tags: Array.isArray(item.tags) ? item.tags : Array.isArray(item.categories) ? item.categories : ["General"],
     featured: Boolean(item.featured),
