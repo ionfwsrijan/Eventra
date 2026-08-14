@@ -43,7 +43,7 @@ const EventSessionWaitlist = ({
 
   const currentPosition = sortedWaitlist.findIndex(
     (participant) =>
-      participant.userId === currentUserId
+      String(participant.userId) === String(currentUserId)
   );
 
   const isOnWaitlist =
@@ -282,8 +282,8 @@ const EventSessionWaitlist = ({
                   participant={participant}
                   position={index + 1}
                   isCurrentUser={
-                    participant.userId ===
-                    currentUserId
+                    String(participant.userId) ===
+                    String(currentUserId)
                   }
                   onPromote={() =>
                     onPromoteParticipant?.(
