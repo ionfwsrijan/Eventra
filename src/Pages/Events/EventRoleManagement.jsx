@@ -1,18 +1,24 @@
 import usePaginatedFetch from "hooks/usePaginatedFetch";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { API_ENDPOINTS, apiUtils } from "../../config/api.js";
+import { useAuth } from "../../context/AuthContext.js";
 
 const EVENT_ROLES = ["ORGANIZER", "MODERATOR", "ATTENDEE"];
 
 export default function EventRoleManagement() {
   const { eventId } = useParams();
+  const { hasAnyRole } = useAuth();
   const [userEmail, setUserEmail] = useState("");
   const [role, setRole] = useState("MODERATOR");
   const [saving, setSaving] = useState(false);
+
+  if (!hasAnyRole("ADMIN", "SUPER_ADMIN", "ORGANIZER")) {
+    return <Navigate to="/" replace />;
+  }
 
   // Fix: usePaginatedFetch replaces manual loading/error/data state +
   // bare fetch calls with no AbortController. Auto-cancels on unmount.
