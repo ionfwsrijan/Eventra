@@ -1,6 +1,7 @@
 package com.sandeep.eventrabackend.controller;
 
 import com.sandeep.eventrabackend.model.ZkpFeedback;
+import com.sandeep.eventrabackend.repository.EventRegistrationRepository;
 import com.sandeep.eventrabackend.repository.ZkpFeedbackRepository;
 import com.sandeep.eventrabackend.service.ZkpVerifierService;
 import com.sandeep.eventrabackend.service.ZkpVerifierService.ZkpProofPayload;
@@ -8,6 +9,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,14 +28,23 @@ public class ZkpFeedbackController {
     @Autowired
     private ZkpFeedbackRepository zkpFeedbackRepository;
 
+    @Autowired
+    private EventRegistrationRepository eventRegistrationRepository;
+
     @PostMapping("/submit")
-    public ResponseEntity<Map<String, Object>> submitAnonymousFeedback(@Valid @RequestBody ZkpProofPayload payload) {
+    public ResponseEntity<Map<String, Object>> submitAnonymousFeedback(@Valid @RequestBody ZkpProofPayload payload, Authentication authentication) {
         Map<String, Object> response = new HashMap<>();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            response.put("success", false);
+            response.put("message", "Authentication required.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
 
         boolean isValid = zkpVerifierService.verifyProof(payload);
         if (!isValid) {
             response.put("success", false);
-            response.put("message", "Invalid Zero-Knowledge Proof. Attendee membership could not be verified.");
+            response.put("message", "Invalid proof token.");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
 
@@ -47,6 +58,16 @@ public class ZkpFeedbackController {
             response.put("message", "Invalid event ID format.");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
+
+        // Real membership check: the proof alone proves nothing about attendance,
+        // so the submitter must be a registered attendee of this event.
+        String userEmail = authentication.getName();
+        if (eventRegistrationRepository.findByEvent_IdAndUser_Email(eventIdLong, userEmail).isEmpty()) {
+            response.put("success", false);
+            response.put("message", "You must be a registered attendee of this event to submit feedback.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+        }
+
         ZkpFeedback savedFeedback = null;
         try {
             savedFeedback = zkpFeedbackRepository.save(new ZkpFeedback(
@@ -73,7 +94,7 @@ public class ZkpFeedbackController {
         }
 
         response.put("success", true);
-        response.put("message", "Anonymous feedback submitted successfully with verified ZKP membership.");
+        response.put("message", "Anonymous feedback submitted successfully.");
         response.put("proofVerified", true);
         response.put("nullifierHash", payload.getNullifierHash());
 
