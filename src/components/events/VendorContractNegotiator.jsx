@@ -47,7 +47,7 @@ const VendorContractNegotiator = () => {
              </div>
 
              {analysisState === 'upload' && (
-               <div className="flex-1 border-2 border-dashed border-slate-700 rounded-2xl flex flex-col items-center justify-center bg-slate-950/50 hover:bg-slate-800/50 transition cursor-pointer group" onClick={startAnalysis}>
+               <div role="button" tabIndex={0} className="flex-1 border-2 border-dashed border-slate-700 rounded-2xl flex flex-col items-center justify-center bg-slate-950/50 hover:bg-slate-800/50 transition cursor-pointer group" onClick={startAnalysis} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startAnalysis(); } }}>
                  <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition border border-slate-700">📄</div>
                  <span className="text-white font-bold mb-1">Upload Vendor Contract</span>
                  <span className="text-xs text-slate-500 font-mono">Drag & Drop PDF or DOCX</span>
