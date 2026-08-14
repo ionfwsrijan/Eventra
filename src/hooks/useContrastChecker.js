@@ -6,11 +6,21 @@ import { useMemo } from 'react';
  * @returns {number} The relative luminance.
  */
 function getLuminance(hex) {
-  let color = hex.replace(/^#/, '');
-  if (color.length === 3) {
-    color = color.split('').map(c => c + c).join('');
+  if (typeof hex !== 'string') {
+    throw new TypeError('Invalid color: ' + hex);
   }
-  
+  let color = hex.trim().replace(/^#/, '');
+  // Expand 3/4-digit shorthand, drop an 8-digit alpha suffix, then require
+  // exactly 6 hex digits so parsing never yields NaN.
+  if (color.length === 3 || color.length === 4) {
+    color = color.split('').map(c => c + c).join('');
+  } else if (color.length === 8) {
+    color = color.substring(0, 6);
+  }
+  if (color.length !== 6 || /[^0-9a-fA-F]/.test(color)) {
+    throw new TypeError('Invalid hex color: ' + hex);
+  }
+
   const r8bit = parseInt(color.substring(0, 2), 16);
   const g8bit = parseInt(color.substring(2, 4), 16);
   const b8bit = parseInt(color.substring(4, 6), 16);
