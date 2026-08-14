@@ -206,6 +206,17 @@ const useCountdown = (deadline, options = {}) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deadline]);
 
+  // Restart seconds-mode countdown when totalSeconds changes at runtime
+  // (e.g. a dynamic OTP/QR refresh timer). Skip while paused so a deliberate
+  // pause is not interrupted.
+  useEffect(() => {
+    if (!isSecondsMode || paused) return;
+    remainingSecondsRef.current = totalSeconds ?? 0;
+    hasFiredOnEndRef.current = false;
+    setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: totalSeconds ?? 0, ended: false, total: 0 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalSeconds, isSecondsMode]);
+
   // ── Pausable controls ────────────────────────────────────────────────────
   const pause = useCallback(() => setPaused(true), []);
   const resume = useCallback(() => setPaused(false), []);
