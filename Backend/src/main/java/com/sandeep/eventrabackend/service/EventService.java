@@ -997,7 +997,7 @@ public class EventService {
                 List<CsvWaitlistImportRequest.CsvWaitlistEntry> entries = request.getEntries();
                 
                 // Validate event exists and organizer has permission
-                Event event = eventRepository.findById(eventId)
+                Event event = eventRepository.findByIdWithLock(eventId)
                                 .orElseThrow(() -> new EventNotFoundException("Event not found with id: " + eventId));
                 
                 eventRoleService.requireRole(eventId, organizerEmail, EventRole.ORGANIZER);
@@ -1033,9 +1033,6 @@ public class EventService {
                                                                 : parseTimestamp(e.getTimestamp()),
                                                 LocalDateTime::compareTo))
                                 .toList();
-                
-                // Get current max position for this event
-                int currentMaxPosition = eventWaitlistRepository.findMaxPositionByEventId(eventId);
                 
                 for (int i = 0; i < sortedEntries.size(); i++) {
                         CsvWaitlistImportRequest.CsvWaitlistEntry entry = sortedEntries.get(i);
@@ -1076,13 +1073,29 @@ public class EventService {
                                 EventWaitlist waitlistEntry = new EventWaitlist();
                                 waitlistEntry.setEvent(event);
                                 waitlistEntry.setUser(user);
-                                waitlistEntry.setPosition(currentMaxPosition + successfulImports + 1);
                                 waitlistEntry.setStatus("WAITING");
                                 // Use parsed timestamp or current time
                                 waitlistEntry.setJoinedAt(joinedAt);
-                                
-                                eventWaitlistRepository.save(waitlistEntry);
-                                successfulImports++;
+
+                                // Retry on a position-constraint collision (concurrent join) by
+                                // re-reading the current max, mirroring joinWaitlist's retry loop,
+                                // so no legitimate member is dropped.
+                                for (int attempt = 1; attempt <= MAX_REGISTRATION_RETRIES; attempt++) {
+                                        waitlistEntry.setPosition(eventWaitlistRepository.findMaxPositionByEventId(eventId) + 1);
+                                        try {
+                                                eventWaitlistRepository.saveAndFlush(waitlistEntry);
+                                                successfulImports++;
+                                                break;
+                                        } catch (DataIntegrityViolationException ex) {
+                                                String details = String.valueOf(ex.getMostSpecificCause() != null
+                                                                ? ex.getMostSpecificCause().getMessage()
+                                                                : ex.getMessage()).toLowerCase();
+                                                if (attempt == MAX_REGISTRATION_RETRIES
+                                                                || !details.contains("position")) {
+                                                        throw ex;
+                                                }
+                                        }
+                                }
                                 
                         } catch (Exception e) {
                                 // Handle parsing errors and other exceptions
