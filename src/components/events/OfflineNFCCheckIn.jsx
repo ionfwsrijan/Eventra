@@ -78,7 +78,7 @@ const OfflineNFCCheckIn = () => {
           {/* Main Interface */}
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50">
             {checkInState === 'idle' && (
-              <div className="animate-fade-in cursor-pointer" onClick={simulateNFCTap}>
+              <div role="button" tabIndex={0} className="animate-fade-in cursor-pointer" onClick={simulateNFCTap} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); simulateNFCTap(); } }}>
                 <div className="w-32 h-32 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border-4 border-white">
                   <svg className="w-16 h-16 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
