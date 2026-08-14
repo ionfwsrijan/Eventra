@@ -1,5 +1,7 @@
 package com.sandeep.eventrabackend.security.passkey;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,8 +13,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.MessageDigest;
+import java.security.Signature;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -25,6 +34,8 @@ public class WebAuthnController {
 
     private static final int MAX_PENDING_CHALLENGES = 1000;
     private static final Duration CHALLENGE_TTL = Duration.ofMinutes(10);
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final PasskeyCredentialRepository credentialRepository;
 
@@ -102,8 +113,12 @@ public class WebAuthnController {
             throw new IllegalArgumentException("A valid PEM public key is required.");
         }
 
+        String trimmedKey = publicKeyPem.trim();
+        ECPublicKey publicKey = parsePublicKey(trimmedKey);
+        verifyAssertionSignature(publicKey, issued.challenge, payload);
+
         PasskeyCredentialRepository.PasskeyCredential cred =
-                new PasskeyCredentialRepository.PasskeyCredential(credentialId.trim(), userEmail, publicKeyPem.trim());
+                new PasskeyCredentialRepository.PasskeyCredential(credentialId.trim(), userEmail, trimmedKey);
         credentialRepository.save(cred);
 
         // Single-use challenge — consume it so it cannot be replayed.
@@ -113,6 +128,63 @@ public class WebAuthnController {
         response.put("success", true);
         response.put("message", "WebAuthn Passkey registered successfully.");
         return ResponseEntity.ok(response);
+    }
+
+    private ECPublicKey parsePublicKey(String pem) {
+        String body = pem.replace("-----BEGIN PUBLIC KEY-----", "")
+                .replace("-----END PUBLIC KEY-----", "")
+                .replaceAll("\\s", "");
+        try {
+            byte[] der = Base64.getDecoder().decode(body);
+            return (ECPublicKey) KeyFactory.getInstance("EC").generatePublic(new X509EncodedKeySpec(der));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("A valid EC P-256 public key is required.", e);
+        }
+    }
+
+    private void verifyAssertionSignature(ECPublicKey publicKey, String issuedChallenge,
+            Map<String, String> payload) {
+        String clientDataJsonB64 = payload.get("clientDataJSON");
+        String authenticatorDataB64 = payload.get("authenticatorData");
+        String signatureB64 = payload.get("signature");
+        if (clientDataJsonB64 == null || authenticatorDataB64 == null || signatureB64 == null) {
+            throw new IllegalArgumentException(
+                    "clientDataJSON, authenticatorData and signature are required to verify the passkey.");
+        }
+        try {
+            String clientDataJson = new String(Base64.getUrlDecoder().decode(clientDataJsonB64),
+                    StandardCharsets.UTF_8);
+            Map<String, Object> clientData = OBJECT_MAPPER.readValue(
+                    clientDataJson, new TypeReference<Map<String, Object>>() { });
+            String clientType = (String) clientData.get("type");
+            String clientChallenge = (String) clientData.get("challenge");
+            String expectedChallenge = Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(issuedChallenge.getBytes(StandardCharsets.UTF_8));
+            if (clientType == null || !clientType.startsWith("webauthn.")) {
+                throw new IllegalArgumentException("Invalid clientDataJSON type.");
+            }
+            if (clientChallenge == null || !expectedChallenge.equals(clientChallenge)) {
+                throw new IllegalArgumentException(
+                        "clientDataJSON challenge does not match the issued challenge.");
+            }
+            byte[] authenticatorData = Base64.getUrlDecoder().decode(authenticatorDataB64);
+            byte[] clientDataHash = MessageDigest.getInstance("SHA-256")
+                    .digest(Base64.getUrlDecoder().decode(clientDataJsonB64));
+            byte[] verificationData = new byte[authenticatorData.length + clientDataHash.length];
+            System.arraycopy(authenticatorData, 0, verificationData, 0, authenticatorData.length);
+            System.arraycopy(clientDataHash, 0, verificationData, authenticatorData.length,
+                    clientDataHash.length);
+            Signature verifier = Signature.getInstance("SHA256withECDSA");
+            verifier.initVerify(publicKey);
+            verifier.update(verificationData);
+            if (!verifier.verify(Base64.getUrlDecoder().decode(signatureB64))) {
+                throw new IllegalArgumentException("Passkey signature verification failed.");
+            }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Passkey verification failed: " + e.getMessage());
+        }
     }
 
     private void evictExpiredChallenges() {

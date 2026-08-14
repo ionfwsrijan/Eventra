@@ -11,7 +11,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
+import java.security.Signature;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,6 +50,38 @@ class WebAuthnControllerTest {
         Authentication authentication = mock(Authentication.class);
         when(authentication.getName()).thenReturn(username);
         return authentication;
+    }
+
+    private Map<String, String> validPayload(String challenge) throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
+        generator.initialize(256);
+        KeyPair keyPair = generator.generateKeyPair();
+        String der = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
+        String pem = "-----BEGIN PUBLIC KEY-----\n" + der + "\n-----END PUBLIC KEY-----";
+
+        byte[] clientDataJson = ("{\"type\":\"webauthn.create\",\"challenge\":\""
+                + Base64.getUrlEncoder().withoutPadding()
+                        .encodeToString(challenge.getBytes(StandardCharsets.UTF_8))
+                + "\",\"origin\":\"https://localhost\"}")
+                .getBytes(StandardCharsets.UTF_8);
+        byte[] authenticatorData = new byte[37];
+        byte[] clientDataHash = MessageDigest.getInstance("SHA-256").digest(clientDataJson);
+        byte[] signedData = new byte[authenticatorData.length + clientDataHash.length];
+        System.arraycopy(authenticatorData, 0, signedData, 0, authenticatorData.length);
+        System.arraycopy(clientDataHash, 0, signedData, authenticatorData.length, clientDataHash.length);
+        Signature signer = Signature.getInstance("SHA256withECDSA");
+        signer.initSign(keyPair.getPrivate());
+        signer.update(signedData);
+        byte[] signature = signer.sign();
+
+        return Map.of(
+                "credentialId", "cred-1",
+                "userEmail", "user@example.com",
+                "publicKey", pem,
+                "challenge", challenge,
+                "clientDataJSON", Base64.getUrlEncoder().withoutPadding().encodeToString(clientDataJson),
+                "authenticatorData", Base64.getUrlEncoder().withoutPadding().encodeToString(authenticatorData),
+                "signature", Base64.getUrlEncoder().withoutPadding().encodeToString(signature));
     }
 
     @SuppressWarnings("unchecked")
@@ -82,11 +120,7 @@ class WebAuthnControllerTest {
     void challengeIsSingleUse() throws Exception {
         String challenge = (String) controller.generateRegisterChallenge(auth("user@example.com")).getBody().get("challenge");
 
-        Map<String, String> payload = Map.of(
-                "credentialId", "cred-1",
-                "userEmail", "user@example.com",
-                "publicKey", "-----BEGIN PUBLIC KEY-----MIIB-----END PUBLIC KEY-----",
-                "challenge", challenge);
+        Map<String, String> payload = validPayload(challenge);
 
         assertEquals(200, controller.verifyRegistration(payload, auth("user@example.com")).getStatusCode().value());
 
@@ -140,14 +174,10 @@ class WebAuthnControllerTest {
 
     @Test
     @DisplayName("Successful verification persists the credential")
-    void successfulVerificationPersistsCredential() {
+    void successfulVerificationPersistsCredential() throws Exception {
         String challenge = (String) controller.generateRegisterChallenge(auth("user@example.com")).getBody().get("challenge");
 
-        Map<String, String> payload = Map.of(
-                "credentialId", "cred-1",
-                "userEmail", "user@example.com",
-                "publicKey", "-----BEGIN PUBLIC KEY-----MIIB-----END PUBLIC KEY-----",
-                "challenge", challenge);
+        Map<String, String> payload = validPayload(challenge);
 
         controller.verifyRegistration(payload, auth("user@example.com"));
 
