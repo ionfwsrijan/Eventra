@@ -32,8 +32,13 @@ public class GitHubProxyService {
     );
 
     private static final Pattern SAFE_PATH = Pattern.compile("^[A-Za-z0-9_./\\-]+$");
+    /**
+     * Public user profile lookups only. Arbitrary {@code users/<name>/<subpath>}
+     * is intentionally rejected so a shared {@code GITHUB_TOKEN} cannot be aimed
+     * at attacker-chosen GitHub endpoints.
+     */
     private static final Pattern USERS_PATH = Pattern.compile(
-            "^users/[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}(/[A-Za-z0-9_./\\-]*)?$",
+            "^users/[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$",
             Pattern.CASE_INSENSITIVE
     );
 
