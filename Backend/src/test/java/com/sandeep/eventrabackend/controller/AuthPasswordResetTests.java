@@ -99,6 +99,34 @@ public class AuthPasswordResetTests {
     }
 
     @Test
+    @DisplayName("POST /api/auth/reset-password rejects blank email without creating a token (#17846)")
+    void testRequestPasswordResetBlankEmailRejected() throws Exception {
+        ResetPasswordRequest request = new ResetPasswordRequest();
+        request.setEmail("   ");
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(0, passwordResetTokenRepository.count());
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/reset-password rejects invalid email without creating a token (#17846)")
+    void testRequestPasswordResetInvalidEmailRejected() throws Exception {
+        ResetPasswordRequest request = new ResetPasswordRequest();
+        request.setEmail("not-an-email");
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(0, passwordResetTokenRepository.count());
+    }
+
+    @Test
     @DisplayName("POST /api/auth/reset-password/confirm updates password and allows login with new password (#17860)")
     void testConfirmPasswordResetSuccessAndLogin() throws Exception {
         String rawToken = "sample-valid-reset-token-12345";
