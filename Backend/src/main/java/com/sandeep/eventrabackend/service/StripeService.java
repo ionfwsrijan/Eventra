@@ -12,7 +12,10 @@ import com.stripe.model.*;
 import com.stripe.net.Webhook;
 import com.stripe.param.*;
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class StripeService {
+
+    private static final Logger log = LoggerFactory.getLogger(StripeService.class);
 
     @Value("${stripe.api.key:}")
     private String stripeApiKey;
@@ -326,8 +331,23 @@ public class StripeService {
                 }
             }
             
-        } catch (Exception e) {
-            System.err.println("Error handling payment intent succeeded: " + e.getMessage());
+        } catch (NumberFormatException e) {
+            // Permanent metadata corruption: nothing has been persisted yet, so
+            // returning (200) is safe and avoids an infinite retry loop.
+            log.error("Malformed payment webhook metadata for payment intent {}: {}",
+                    paymentIntentId, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            // Invalid webhook payload (e.g. missing registration). Roll back and
+            // let Stripe retry; never commit a partial payment state.
+            log.error("Invalid payment webhook payload for payment intent {}: {}",
+                    paymentIntentId, e.getMessage());
+            throw e;
+        } catch (DataAccessException e) {
+            // Persistent store failure: roll back so the payment, plan and
+            // registration stay consistent; Stripe retries until success.
+            log.error("Persistent store failure while handling payment intent {}: {}",
+                    paymentIntentId, e.getMessage(), e);
+            throw e;
         }
     }
 
@@ -371,8 +391,21 @@ public class StripeService {
                     paymentIntent.getLastPaymentError().getMessage() : "Payment failed");
             paymentRepository.save(payment);
             
-        } catch (Exception e) {
-            System.err.println("Error handling payment intent failed: " + e.getMessage());
+        } catch (NumberFormatException e) {
+            // Permanent metadata corruption: nothing persisted yet; return (200).
+            log.error("Malformed payment webhook metadata for payment intent {}: {}",
+                    paymentIntentId, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            // Invalid webhook payload (e.g. missing registration). Roll back and
+            // let Stripe retry.
+            log.error("Invalid payment webhook payload for payment intent {}: {}",
+                    paymentIntentId, e.getMessage());
+            throw e;
+        } catch (DataAccessException e) {
+            // Persistent store failure: roll back and let Stripe retry.
+            log.error("Persistent store failure while handling payment intent {}: {}",
+                    paymentIntentId, e.getMessage(), e);
+            throw e;
         }
     }
 
