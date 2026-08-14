@@ -89,9 +89,11 @@ public class ProjectService {
         // Two concurrent requests from the same user can both pass the
         // existsBy guard before either insert commits; the second insert
         // then violates the (project_id, user_id) unique constraint.
-        // Surface that as a friendly conflict instead of a 500 (#11776).
+        // Flush here so the constraint is checked inside the try/catch and
+        // surfaces as a friendly conflict instead of a 500 at the later
+        // incrementUpvotes call (#11776, #17832).
         try {
-            projectUpvoteRepository.save(upvote);
+            projectUpvoteRepository.saveAndFlush(upvote);
         } catch (DataIntegrityViolationException ex) {
             throw new RegistrationConflictException("You have already upvoted this project.");
         }
