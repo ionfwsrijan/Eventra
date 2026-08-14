@@ -232,7 +232,9 @@ public class SubtitleController {
     @PostMapping("/session/start")
     public ResponseEntity<SubtitleSession> startSession(
             @RequestParam Long eventId,
-            @RequestParam(required = false) Long userId) {
+            @RequestParam(required = false) Long userId,
+            Authentication authentication) {
+        assertCanModifyEvent(eventId, authentication);
         String sessionId = UUID.randomUUID().toString();
         SubtitleSession session = subtitleService.startSession(sessionId, eventId, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(session);
@@ -245,7 +247,9 @@ public class SubtitleController {
     public ResponseEntity<SubtitleSession> startSessionWithId(
             @PathVariable String sessionId,
             @RequestParam Long eventId,
-            @RequestParam(required = false) Long userId) {
+            @RequestParam(required = false) Long userId,
+            Authentication authentication) {
+        assertCanModifyEvent(eventId, authentication);
         SubtitleSession session = subtitleService.startSession(sessionId, eventId, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(session);
     }
@@ -254,7 +258,13 @@ public class SubtitleController {
      * End a subtitle session
      */
     @PostMapping("/session/{sessionId}/end")
-    public ResponseEntity<SubtitleSession> endSession(@PathVariable String sessionId) {
+    public ResponseEntity<SubtitleSession> endSession(@PathVariable String sessionId,
+            Authentication authentication) {
+        Optional<SubtitleSession> existing = subtitleService.getSession(sessionId);
+        if (existing.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        assertCanModifyEvent(existing.get().getEventId(), authentication);
         SubtitleSession session = subtitleService.endSession(sessionId);
         if (session != null) {
             return ResponseEntity.ok(session);
@@ -266,18 +276,23 @@ public class SubtitleController {
      * Get session by ID
      */
     @GetMapping("/session/{sessionId}")
-    public ResponseEntity<SubtitleSession> getSession(@PathVariable String sessionId) {
+    public ResponseEntity<SubtitleSession> getSession(@PathVariable String sessionId,
+            Authentication authentication) {
         Optional<SubtitleSession> session = subtitleService.getSession(sessionId);
-        return session
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        if (session.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        assertCanModifyEvent(session.get().getEventId(), authentication);
+        return ResponseEntity.ok(session.get());
     }
     
     /**
      * Get active sessions for an event
      */
     @GetMapping("/event/{eventId}/sessions")
-    public ResponseEntity<List<SubtitleSession>> getActiveSessionsByEventId(@PathVariable Long eventId) {
+    public ResponseEntity<List<SubtitleSession>> getActiveSessionsByEventId(@PathVariable Long eventId,
+            Authentication authentication) {
+        assertCanModifyEvent(eventId, authentication);
         List<SubtitleSession> sessions = subtitleService.getActiveSessionsByEventId(eventId);
         return ResponseEntity.ok(sessions);
     }
