@@ -106,24 +106,39 @@ export async function validateSignature(
     };
   }
 
+  usedNonces.set(nonce, now);
+
   const expectedSignature = await hmacSha256Hex(
     secret,
     deterministicStringify(payload) + timestamp + nonce
   );
 
-  if (expectedSignature !== signature) {
+  if (!timingSafeEqual(expectedSignature, signature)) {
+    usedNonces.delete(nonce);
     return {
       valid: false,
       error: "Invalid signature",
     };
   }
 
-  usedNonces.set(nonce, now);
-
   return {
     valid: true,
   };
 }
+
+/**
+ * Constant-time string comparison that works in browsers without Node's
+ * crypto module. Different-length inputs always take the same number of
+ * iterations and always compare unequal.
+ */
+const timingSafeEqual = (a, b) => {
+  const maxLen = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < maxLen; i++) {
+    diff |= (a.charCodeAt(i) ^ b.charCodeAt(i)) || 0;
+  }
+  return diff === 0;
+};
 
 // Cleanup of expired nonces is now handled lazily within validateSignature()
 // instead of a module-scoped setInterval to prevent memory leaks in the browser.
