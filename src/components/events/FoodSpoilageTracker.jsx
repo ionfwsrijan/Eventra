@@ -121,7 +121,7 @@ const FoodSpoilageTracker = () => {
              </div>
 
              <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-               {platters.sort((a, b) => a.remainingMinutes - b.remainingMinutes).map(platter => (
+               {[...platters].sort((a, b) => a.remainingMinutes - b.remainingMinutes).map(platter => (
                  <div key={platter.id} className={`bg-white border p-4 rounded-2xl relative overflow-hidden transition-all duration-500 ${
                    platter.risk === 'critical' ? 'border-rose-300 shadow-[0_0_15px_rgba(225,29,72,0.15)]' :
                    platter.risk === 'warning' ? 'border-amber-300' : 'border-slate-200'
