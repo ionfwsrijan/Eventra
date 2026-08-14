@@ -29,7 +29,7 @@ public class JwtKeyRotationManager {
 
     private final Map<String, SecretKey> keyRing = new ConcurrentHashMap<>();
     private final Deque<String> keyOrder = new ArrayDeque<>();
-    private String currentKeyId;
+    private volatile String currentKeyId;
 
     /**
      * Registers {@code secretKey} as the current signing key. The previously
@@ -57,11 +57,11 @@ public class JwtKeyRotationManager {
     /**
      * @return the current signing key, or {@code null} if none has been registered
      */
-    public SecretKey getCurrentKey() {
+    public synchronized SecretKey getCurrentKey() {
         return keyRing.get(currentKeyId);
     }
 
-    public String getCurrentKeyId() {
+    public synchronized String getCurrentKeyId() {
         return currentKeyId;
     }
 
@@ -76,7 +76,7 @@ public class JwtKeyRotationManager {
      * @return the retained grace keys (all keys other than the current one),
      *         ordered from most recently current to oldest
      */
-    public List<SecretKey> getGraceKeys() {
+    public synchronized List<SecretKey> getGraceKeys() {
         List<SecretKey> graceKeys = new ArrayList<>();
         for (String keyId : keyOrder) {
             if (!keyId.equals(currentKeyId)) {
