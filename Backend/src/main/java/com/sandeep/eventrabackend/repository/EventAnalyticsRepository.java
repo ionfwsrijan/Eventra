@@ -77,4 +77,25 @@ public interface EventAnalyticsRepository extends JpaRepository<Event, Long> {
 
     @Query("SELECT DISTINCT e.ownerId FROM Event e WHERE e.ownerId IS NOT NULL")
     List<Long> findDistinctOwnerIds();
+
+    // Per-organizer aggregates for the admin dashboard, computed in a single
+    // grouped query instead of per-owner N+1 lookups. Mirrors the events a
+    // user owns or manages (owner or event-team member). Only users who own
+    // at least one event are included, matching findDistinctOwnerIds().
+    // Returns: [userId, firstName, lastName, eventCount, totalRegistered, avgUtilization]
+    @Query("""
+        SELECT u.id,
+               u.firstName,
+               u.lastName,
+               COUNT(DISTINCT e.id),
+               COALESCE(SUM(e.registeredCount), 0),
+               AVG(CASE WHEN e.capacity IS NOT NULL AND e.capacity > 0
+                        THEN e.registeredCount * 1.0 / e.capacity END)
+        FROM User u
+        JOIN Event e ON (e.ownerId = u.id
+                         OR e.id IN (SELECT tm.event.id FROM EventTeamMember tm WHERE tm.user.id = u.id))
+        WHERE u.id IN (SELECT DISTINCT e2.ownerId FROM Event e2 WHERE e2.ownerId IS NOT NULL)
+        GROUP BY u.id, u.firstName, u.lastName
+        """)
+    List<Object[]> aggregateOrganizerInsights();
 }
