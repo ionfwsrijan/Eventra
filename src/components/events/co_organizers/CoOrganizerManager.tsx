@@ -18,6 +18,7 @@ interface CoOrganizerManagerProps {
   eventId: string;
   primaryOrganizerId: string;
   currentUserId: string;
+  currentUserEmail?: string;
   coOrganizers?: CoOrganizer[];
 
   onInvite?: (
@@ -81,6 +82,7 @@ const CoOrganizerManager: React.FC<
   eventId,
   primaryOrganizerId,
   currentUserId,
+  currentUserEmail,
   coOrganizers = [],
   onInvite,
   onRemove,
@@ -713,8 +715,9 @@ const CoOrganizerManager: React.FC<
                   {/* Invitation actions */}
                   {organizer.status ===
                     "pending" &&
-                    organizer.id ===
-                      currentUserId && (
+                    currentUserEmail &&
+                    organizer.email?.toLowerCase() ===
+                      currentUserEmail.toLowerCase() && (
                       <div className="mt-5 rounded-xl border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950/40">
                         <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-300">
                           You have been invited as a
