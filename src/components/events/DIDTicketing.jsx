@@ -148,7 +148,7 @@ const DIDTicketing = () => {
                 </div>
 
                 {/* Dynamic QR Code Simulator */}
-                <div className="relative z-10 w-48 h-48 bg-white rounded-2xl p-3 shadow-inner flex items-center justify-center mb-6 overflow-hidden group cursor-pointer" onClick={simulateScan}>
+                <div role="button" tabIndex={0} className="relative z-10 w-48 h-48 bg-white rounded-2xl p-3 shadow-inner flex items-center justify-center mb-6 overflow-hidden group cursor-pointer" onClick={simulateScan} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); simulateScan(); } }}>
                   
                   {/* Fake QR Pattern */}
                   <div className="w-full h-full border-4 border-slate-900 relative">
