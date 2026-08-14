@@ -22,6 +22,7 @@ const EventCheckInScanner = ({ eventId, onCheckIn, existingCheckIns = [], regist
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const frameRef = useRef(null);
+  const checkedInIdsRef = useRef(new Set());
   const [isScanning, setIsScanning] = useState(false);
   const [lastScannedId, setLastScannedId] = useState(null);
   const [scannedData, setScannedData] = useState(null);
@@ -160,7 +161,10 @@ const EventCheckInScanner = ({ eventId, onCheckIn, existingCheckIns = [], regist
       }
 
       // Check for duplicate check-in (non-group)
-      if (hasBeenCheckedIn(registrationId, existingCheckIns)) {
+      if (
+        hasBeenCheckedIn(registrationId, existingCheckIns) ||
+        checkedInIdsRef.current.has(String(registrationId))
+      ) {
         toast.warning(
           `${registration?.name || 'Attendee'} already checked in`
         );
@@ -174,6 +178,8 @@ const EventCheckInScanner = ({ eventId, onCheckIn, existingCheckIns = [], regist
         timestamp: new Date().toISOString(),
         scannedBy: 'qr-scanner',
       });
+
+      checkedInIdsRef.current.add(String(registrationId));
 
       setLastScannedId(registrationId);
       setScannedData(parsedData);
