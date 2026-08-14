@@ -187,6 +187,14 @@ class AudioCaptureService {
       logger.log("[AudioCaptureService] Audio capture started successfully");
       
     } catch (error) {
+      if (this.audioContext) {
+        try { await this.audioContext.close(); } catch {}
+        this.audioContext = null;
+      }
+      if (this.mediaStream) {
+        this.mediaStream.getTracks().forEach((track) => track.stop());
+        this.mediaStream = null;
+      }
       this.retryCount++;
       logger.error("[AudioCaptureService] Error starting audio capture:", error);
       
