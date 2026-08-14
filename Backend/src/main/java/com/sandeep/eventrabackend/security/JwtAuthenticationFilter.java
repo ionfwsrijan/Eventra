@@ -95,7 +95,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (passwordChangedAt != null) {
                     long tokenIssuedSec = tokenIssuedAt.getTime() / 1000;
                     long passwordChangedSec = passwordChangedAt
-                            .atZone(ZoneId.systemDefault())
+                            .atZone(ZoneId.of("UTC"))
                             .toEpochSecond();
                     if (tokenIssuedSec < passwordChangedSec) {
                         logger.warn("Token issued before password change for user: {}", username);

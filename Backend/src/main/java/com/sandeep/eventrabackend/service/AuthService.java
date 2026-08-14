@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Date;
 
 @Service
@@ -314,7 +315,7 @@ public class AuthService {
 
         User user = resetToken.getUser();
         user.setPassword(passwordEncoder.encode(newPassword));
-        user.setPasswordChangedAt(LocalDateTime.now());
+        user.setPasswordChangedAt(LocalDateTime.now(ZoneOffset.UTC));
         userRepository.save(user);
 
         resetToken.setUsed(true);
@@ -444,7 +445,7 @@ public class AuthService {
             Date tokenIssuedAt = jwtTokenProvider.getIssuedAtDateFromToken(refreshToken);
             long tokenIssuedSec = tokenIssuedAt.getTime() / 1000;
             long passwordChangedSec = user.getPasswordChangedAt()
-                    .atZone(ZoneId.systemDefault())
+                    .atZone(ZoneId.of("UTC"))
                     .toEpochSecond();
             if (tokenIssuedSec < passwordChangedSec) {
                 throw new org.springframework.security.authentication.BadCredentialsException(
