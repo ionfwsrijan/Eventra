@@ -15,7 +15,6 @@ public class OidcKeyCacheManager {
     private static final long COOLDOWN_PERIOD_MS = 300000; // 5-minute cooldown
 
     public OidcKeyCacheManager() {
-        cachedKeys.put("kid_v1", "public_key_v1");
     }
 
     public synchronized String getPublicKey(String kid) {
