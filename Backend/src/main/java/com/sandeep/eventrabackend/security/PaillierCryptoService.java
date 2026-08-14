@@ -18,7 +18,7 @@ public class PaillierCryptoService {
      */
     public String addEncrypted(String ciphertext1, String ciphertext2, String modulusN) {
         if (ciphertext1 == null || ciphertext2 == null || modulusN == null) {
-            return "0";
+            throw new IllegalArgumentException("ciphertext1, ciphertext2 and modulusN are required");
         }
 
         try {
@@ -26,12 +26,14 @@ public class PaillierCryptoService {
             BigInteger c2 = new BigInteger(ciphertext2);
             BigInteger n = new BigInteger(modulusN);
             BigInteger nSquare = n.multiply(n);
+            validateCiphertext(c1, nSquare);
+            validateCiphertext(c2, nSquare);
 
             // E(m1 + m2) = (c1 * c2) mod n^2
             BigInteger sumCiphertext = c1.multiply(c2).mod(nSquare);
             return sumCiphertext.toString();
-        } catch (Exception e) {
-            return "0";
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("ciphertexts and modulusN must be valid integers", e);
         }
     }
 
@@ -40,7 +42,7 @@ public class PaillierCryptoService {
      */
     public String aggregateEncryptedSum(List<String> ciphertexts, String modulusN) {
         if (ciphertexts == null || ciphertexts.isEmpty() || modulusN == null) {
-            return "0";
+            throw new IllegalArgumentException("ciphertexts and modulusN are required");
         }
 
         BigInteger n = new BigInteger(modulusN);
@@ -50,10 +52,19 @@ public class PaillierCryptoService {
         for (String cStr : ciphertexts) {
             try {
                 BigInteger c = new BigInteger(cStr);
+                validateCiphertext(c, nSquare);
                 result = result.multiply(c).mod(nSquare);
-            } catch (Exception ignored) {}
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("ciphertext must be a valid integer", e);
+            }
         }
 
         return result.toString();
+    }
+
+    private void validateCiphertext(BigInteger ciphertext, BigInteger nSquare) {
+        if (ciphertext.signum() <= 0 || ciphertext.compareTo(nSquare) >= 0) {
+            throw new IllegalArgumentException("ciphertext out of range for the given modulus");
+        }
     }
 }
