@@ -59,7 +59,7 @@ public class LiveAudienceService {
         requireEventAccess(eventId, email);
         List<LiveAudienceQuestionResponse> questions = getQuestions(eventId, email);
         LiveAudiencePollResponse activePoll = pollRepository
-                .findByEventIdOrderByCreatedAtDesc(eventId)
+                .findByEventIdAndStatusOrderByCreatedAtDesc(eventId, "active")
                 .stream()
                 .findFirst()
                 .map(this::toPollResponse)
@@ -186,6 +186,15 @@ public class LiveAudienceService {
         }
         Map<String, Object> results = new HashMap<>();
         options.forEach(opt -> results.put(opt, 0));
+
+        // Retire the currently active poll (if any) so at most one poll is
+        // active per event at a time.
+        for (LiveAudiencePoll activePoll : pollRepository
+                .findByEventIdAndStatusOrderByCreatedAtDesc(eventId, "active")) {
+            activePoll.setStatus("closed");
+            activePoll.setUpdatedAt(LocalDateTime.now());
+            pollRepository.save(activePoll);
+        }
 
         LiveAudiencePoll poll = LiveAudiencePoll.builder()
                 .eventId(eventId)
