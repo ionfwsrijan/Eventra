@@ -83,6 +83,14 @@ const EventParticipantScheduleExport = ({
       .replace(/;/g, "\\;")
       .replace(/\n/g, "\\n");
 
+  const escapeHTML = (value) =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
   const toICalDate = (date) => {
     const value = new Date(date);
 
@@ -156,14 +164,14 @@ const EventParticipantScheduleExport = ({
       .map(
         (session) => `
           <tr>
-            <td>${session.name}</td>
-            <td>${session.speaker}</td>
+            <td>${escapeHTML(session.name)}</td>
+            <td>${escapeHTML(session.speaker)}</td>
             <td>
               ${formatDate(session.start)}<br />
               ${formatTime(session.start)} -
               ${formatTime(session.end)}
             </td>
-            <td>${session.venue}</td>
+            <td>${escapeHTML(session.venue)}</td>
           </tr>
         `
       )
