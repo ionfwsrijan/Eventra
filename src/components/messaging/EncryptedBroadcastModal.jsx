@@ -12,6 +12,7 @@ export default function EncryptedBroadcastModal({
   const [plaintext, setPlaintext] = useState("");
   const [expirationHours, setExpirationHours] = useState("1");
   const [isEncrypting, setIsEncrypting] = useState(false);
+  const [encryptionAvailable, setEncryptionAvailable] = useState(false);
 
   if (!isOpen) return null;
 
@@ -22,6 +23,7 @@ export default function EncryptedBroadcastModal({
     setIsEncrypting(true);
     try {
       const encryptedBlob = await encryptE2EEMessage(plaintext.trim(), recipientPublicKey);
+      setEncryptionAvailable(encryptedBlob.isEncrypted === true);
       onSendEncrypted({
         ...encryptedBlob,
         recipientName,
@@ -58,10 +60,20 @@ export default function EncryptedBroadcastModal({
           </button>
         </div>
 
-        {/* E2EE Lock Banner */}
-        <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-          <span>Zero-Knowledge Encryption: Message is encrypted in browser using AES-GCM-256 before upload.</span>
+        {/* Encryption status banner */}
+        <div
+          className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+            encryptionAvailable
+              ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300"
+              : "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300"
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4 shrink-0" />
+          {encryptionAvailable ? (
+            <span>Zero-Knowledge Encryption: Message is encrypted in browser using AES-GCM-256 before upload.</span>
+          ) : (
+            <span>Recipient public key is not available, so this message will NOT be encrypted. Do not send sensitive content until a key is configured.</span>
+          )}
         </div>
 
         <form onSubmit={handleSend} className="space-y-4 text-xs">
@@ -105,7 +117,7 @@ export default function EncryptedBroadcastModal({
               </>
             ) : (
               <>
-                <Send className="w-4 h-4" /> Send Encrypted Broadcast
+                <Send className="w-4 h-4" /> Send Broadcast
               </>
             )}
           </button>
