@@ -3,6 +3,7 @@ import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import {
   addDays,
   addHours,
+  addMonths,
   format,
   getDay,
   isSameDay,
@@ -248,9 +249,17 @@ const CalendarPage = () => {
   }, []);
 
   const handleNavigate = useCallback(
-    (date) => {
-      if (!isSameMonth(date, selectedDate)) {
-        setSelectedDate(startOfDay(date));
+    (dateOrAction) => {
+      let nextDate = dateOrAction;
+      if (dateOrAction === "PREV") {
+        nextDate = addMonths(selectedDate, -1);
+      } else if (dateOrAction === "NEXT") {
+        nextDate = addMonths(selectedDate, 1);
+      } else if (dateOrAction === "TODAY") {
+        nextDate = startOfDay(new Date());
+      }
+      if (!isSameMonth(nextDate, selectedDate)) {
+        setSelectedDate(startOfDay(nextDate));
       }
     },
     [selectedDate]
