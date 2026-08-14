@@ -47,7 +47,7 @@
  *   </button>
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // execCommand fallback (for HTTP contexts and legacy browsers)
@@ -108,6 +108,15 @@ const useClipboard = ({ resetMs = 2500 } = {}) => {
 
   // Track reset timers so we can clear them on unmount
   const timersRef = useRef({});
+
+  // Clear any pending reset timers when the component unmounts so we never
+  // call setState on an unmounted component (#17569).
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, []);
 
   /**
    * copy(text, key?)
