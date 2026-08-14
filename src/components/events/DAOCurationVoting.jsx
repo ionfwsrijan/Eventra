@@ -239,7 +239,7 @@ const DAOCurationVoting = () => {
                  <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2">Select Friday Headliner</p>
                  
                  <div className="flex-1 overflow-y-auto space-y-3 pr-1 pt-1">
-                   {artists.sort((a,b) => b.votes - a.votes).map((artist, index) => {
+                   {[...artists].sort((a,b) => b.votes - a.votes).map((artist, index) => {
                      const isWinner = !votingActive && index === 0;
                      const winPercent = ((artist.votes / totalVotes) * 100).toFixed(1);
                      
