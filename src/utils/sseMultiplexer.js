@@ -566,7 +566,11 @@ export class SseMultiplexer {
           "http://localhost:8080/api/v1"
         : "http://localhost:8080/api/v1";
 
-    let url = `${sseBaseUrl}${path}`;
+    // Join the base URL and path with exactly one "/" regardless of whether
+    // the caller's path has a leading slash (#17570).
+    const base = sseBaseUrl.replace(/\/+$/, "");
+    const normalizedPath = path && !path.startsWith("/") ? `/${path}` : (path || "/");
+    let url = `${base}${normalizedPath}`;
     const urlParams = new URLSearchParams();
 
     // Auth is the HttpOnly session cookie (EventSource withCredentials).
