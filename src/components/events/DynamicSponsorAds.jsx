@@ -102,7 +102,7 @@ const DynamicSponsorAds = () => {
                 )}
 
                 {activeAd && activeAd.type === 'video_bumper' && (
-                  <div className="bg-black border border-slate-700 rounded-xl overflow-hidden shadow-2xl group cursor-pointer" onClick={handleAdInteraction}>
+                  <div role="button" tabIndex={0} className="bg-black border border-slate-700 rounded-xl overflow-hidden shadow-2xl group cursor-pointer" onClick={handleAdInteraction} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleAdInteraction(); } }}>
                     <div className="h-48 bg-slate-800 flex items-center justify-center relative">
                       <span className="text-4xl text-white">▶️</span>
                       <div className="absolute top-2 left-2 bg-black/70 px-2 py-1 text-[10px] text-white font-bold rounded uppercase tracking-wider border border-white/20">
