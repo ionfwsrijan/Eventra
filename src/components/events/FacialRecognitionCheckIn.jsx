@@ -94,7 +94,7 @@ const FacialRecognitionCheckIn = () => {
                 <div className="flex-1 w-full flex flex-col items-center justify-center">
                   
                   {scanState === 'idle' && (
-                    <div className="flex flex-col items-center animate-fade-in cursor-pointer" onClick={triggerScan}>
+                    <div role="button" tabIndex={0} className="flex flex-col items-center animate-fade-in cursor-pointer" onClick={triggerScan} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); triggerScan(); } }}>
                       <div className="w-40 h-40 border-4 border-dashed border-blue-500 rounded-full flex items-center justify-center text-6xl text-blue-500/50 relative">
                         <span className="animate-pulse">👤</span>
                       </div>
