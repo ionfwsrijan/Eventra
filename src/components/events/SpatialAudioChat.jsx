@@ -27,7 +27,7 @@ const SpatialAudioChat = () => {
       </div>
 
       {inRoom ? (
-        <div className="relative w-full h-96 bg-gray-100 rounded-lg border-2 border-gray-300 overflow-hidden" onClick={handleMapClick}>
+        <div role="button" tabIndex={0} className="relative w-full h-96 bg-gray-100 rounded-lg border-2 border-gray-300 overflow-hidden" onClick={handleMapClick} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleMapClick(e); } }}>
           <div className="absolute top-4 left-4 text-xs text-gray-400 font-mono">Click anywhere to move</div>
           
           {/* Other Attendees */}
