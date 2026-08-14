@@ -21,7 +21,7 @@ const BiometricEntry = () => {
         <p className="text-sm text-gray-500">Fast, secure facial recognition check-in.</p>
       </div>
 
-      <div className="relative w-full aspect-square bg-gray-900 rounded-xl overflow-hidden mb-6 flex flex-col items-center justify-center cursor-pointer group" onClick={simulateScan}>
+      <div role="button" tabIndex={0} className="relative w-full aspect-square bg-gray-900 rounded-xl overflow-hidden mb-6 flex flex-col items-center justify-center cursor-pointer group" onClick={simulateScan} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); simulateScan(); } }}>
         {/* Placeholder camera feed bg */}
         <div className="absolute inset-0 bg-gray-800 opacity-50 group-hover:opacity-70 transition"></div>
         
