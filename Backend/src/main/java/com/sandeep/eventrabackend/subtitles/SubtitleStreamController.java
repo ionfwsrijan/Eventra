@@ -9,6 +9,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.http.*;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.io.IOException;
 import java.util.*;
@@ -479,5 +481,16 @@ public class SubtitleStreamController {
      */
     public void notifySessionSubscribers(String sessionId, Subtitle subtitle) {
         broadcastToSession(sessionId, subtitle);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onSubtitleCreated(SubtitleCreatedEvent event) {
+        Subtitle subtitle = event.subtitle();
+        if (subtitle.getEventId() != null) {
+            broadcastToEvent(subtitle.getEventId(), subtitle);
+        }
+        if (subtitle.getSessionId() != null) {
+            broadcastToSession(subtitle.getSessionId(), subtitle);
+        }
     }
 }

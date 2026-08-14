@@ -2,6 +2,7 @@ package com.sandeep.eventrabackend.subtitles;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 public class SubtitleService {
     
     private final SubtitleRepository subtitleRepository;
+    private final ApplicationEventPublisher eventPublisher;
     
     // Configuration values
     @Value("${subtitle.default-duration-ms:5000}")
@@ -83,6 +85,7 @@ public class SubtitleService {
         
         // Add to cache
         addToCache(subtitle);
+        eventPublisher.publishEvent(new SubtitleCreatedEvent(subtitle));
         
         log.info("Created subtitle {} for event {}", subtitle.getId(), subtitle.getEventId());
         
@@ -120,6 +123,7 @@ public class SubtitleService {
         // Add to cache and notify session
         addToCache(subtitle);
         notifySessionUpdate(subtitle.getSessionId(), subtitle);
+        eventPublisher.publishEvent(new SubtitleCreatedEvent(subtitle));
         
         log.debug("Created real-time subtitle {} for session {}", subtitle.getId(), subtitle.getSessionId());
         
