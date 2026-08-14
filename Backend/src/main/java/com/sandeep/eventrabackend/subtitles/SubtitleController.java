@@ -78,33 +78,48 @@ public class SubtitleController {
     
     /**
      * Get subtitle by ID
+     *
+     * FIX (#17836): Only the event organizer or an admin may read an event's
+     * subtitles.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<SubtitleDTO> getSubtitleById(@PathVariable Long id) {
+    public ResponseEntity<SubtitleDTO> getSubtitleById(@PathVariable Long id,
+            Authentication authentication) {
         Optional<Subtitle> subtitle = subtitleService.getSubtitleById(id);
-        return subtitle
-                .map(SubtitleDTO::fromEntity)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        if (subtitle.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        assertCanModifyEvent(subtitle.get().getEventId(), authentication);
+        return ResponseEntity.ok(SubtitleDTO.fromEntity(subtitle.get()));
     }
     
     /**
      * Get subtitle by UUID
+     *
+     * FIX (#17836): Only the event organizer or an admin may read an event's
+     * subtitles.
      */
     @GetMapping("/uuid/{uuid}")
-    public ResponseEntity<SubtitleDTO> getSubtitleByUuid(@PathVariable String uuid) {
+    public ResponseEntity<SubtitleDTO> getSubtitleByUuid(@PathVariable String uuid,
+            Authentication authentication) {
         Optional<Subtitle> subtitle = subtitleService.getSubtitleByUuid(uuid);
-        return subtitle
-                .map(SubtitleDTO::fromEntity)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        if (subtitle.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        assertCanModifyEvent(subtitle.get().getEventId(), authentication);
+        return ResponseEntity.ok(SubtitleDTO.fromEntity(subtitle.get()));
     }
     
     /**
      * Get subtitles by event ID
+     *
+     * FIX (#17836): Only the event organizer or an admin may read an event's
+     * subtitles.
      */
     @GetMapping("/event/{eventId}")
-    public ResponseEntity<List<SubtitleDTO>> getSubtitlesByEventId(@PathVariable Long eventId) {
+    public ResponseEntity<List<SubtitleDTO>> getSubtitlesByEventId(@PathVariable Long eventId,
+            Authentication authentication) {
+        assertCanModifyEvent(eventId, authentication);
         List<Subtitle> subtitles = subtitleService.getSubtitlesByEventId(eventId);
         List<SubtitleDTO> dtos = subtitles.stream()
                 .map(SubtitleDTO::fromEntity)
@@ -114,9 +129,14 @@ public class SubtitleController {
     
     /**
      * Get active subtitles for an event
+     *
+     * FIX (#17836): Only the event organizer or an admin may read an event's
+     * subtitles.
      */
     @GetMapping("/event/{eventId}/active")
-    public ResponseEntity<List<SubtitleDTO>> getActiveSubtitlesByEventId(@PathVariable Long eventId) {
+    public ResponseEntity<List<SubtitleDTO>> getActiveSubtitlesByEventId(@PathVariable Long eventId,
+            Authentication authentication) {
+        assertCanModifyEvent(eventId, authentication);
         List<Subtitle> subtitles = subtitleService.getActiveSubtitlesByEventId(eventId);
         List<SubtitleDTO> dtos = subtitles.stream()
                 .map(SubtitleDTO::fromEntity)
@@ -126,11 +146,16 @@ public class SubtitleController {
     
     /**
      * Get recent subtitles for an event (paginated)
+     *
+     * FIX (#17836): Only the event organizer or an admin may read an event's
+     * subtitles.
      */
     @GetMapping("/event/{eventId}/recent")
     public ResponseEntity<Page<SubtitleDTO>> getRecentSubtitlesByEventId(
             @PathVariable Long eventId,
-            @PageableDefault(size = 20, sort = "createdAt,desc") Pageable pageable) {
+            @PageableDefault(size = 20, sort = "createdAt,desc") Pageable pageable,
+            Authentication authentication) {
+        assertCanModifyEvent(eventId, authentication);
         Page<Subtitle> page = subtitleService.getRecentSubtitlesByEventId(eventId, pageable);
         Page<SubtitleDTO> dtoPage = page.map(SubtitleDTO::fromEntity);
         return ResponseEntity.ok(dtoPage);
@@ -138,9 +163,14 @@ public class SubtitleController {
     
     /**
      * Get subtitles by session ID
+     *
+     * FIX (#17836): Only the event organizer or an admin may read an event's
+     * subtitles.
      */
     @GetMapping("/session/{sessionId}/subtitles")
-    public ResponseEntity<List<SubtitleDTO>> getSubtitlesBySessionId(@PathVariable String sessionId) {
+    public ResponseEntity<List<SubtitleDTO>> getSubtitlesBySessionId(@PathVariable String sessionId,
+            Authentication authentication) {
+        assertCanModifySession(sessionId, authentication);
         List<Subtitle> subtitles = subtitleService.getSubtitlesBySessionId(sessionId);
         List<SubtitleDTO> dtos = subtitles.stream()
                 .map(SubtitleDTO::fromEntity)
