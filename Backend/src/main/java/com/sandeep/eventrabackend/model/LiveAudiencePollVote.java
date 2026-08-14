@@ -8,10 +8,15 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
- * Records one attendee's vote on a live poll so each attendee can vote at
- * most once per poll (unique {@code poll_id + user_id}).
+ * Records one attendee's votes on a live poll so each attendee can vote at
+ * most once per poll (unique {@code poll_id + user_id}). Single-select polls
+ * record the chosen option in {@code optionText}; multi-select polls store the
+ * full set of chosen options in {@code options} ({@code optionText} keeps the
+ * first selection for backward compatibility).
  */
 @Data
 @Builder
@@ -36,6 +41,13 @@ public class LiveAudiencePollVote {
 
     @Column(name = "option_text", nullable = false, length = 200)
     private String optionText;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "live_audience_poll_vote_options",
+            joinColumns = @JoinColumn(name = "poll_vote_id"))
+    @Column(name = "option_text", length = 200)
+    private Set<String> options = new HashSet<>();
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

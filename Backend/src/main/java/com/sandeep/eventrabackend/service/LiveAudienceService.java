@@ -245,22 +245,40 @@ public class LiveAudienceService {
             throw new IllegalArgumentException("Voting is paused for this poll");
         }
         User user = getUser(email);
-        if (pollVoteRepository.existsByPollIdAndUserId(pollId, user.getId())) {
-            throw new IllegalArgumentException("You have already voted in this poll");
-        }
         String trimmed = option == null ? "" : option.trim();
         if (!poll.getOptions().contains(trimmed)) {
             throw new IllegalArgumentException("Selected option is not part of this poll");
         }
+
+        boolean multiSelect = "multiple".equalsIgnoreCase(poll.getType());
+        LiveAudiencePollVote vote = pollVoteRepository.findByPollIdAndUserId(pollId, user.getId()).orElse(null);
+        if (!multiSelect && vote != null) {
+            throw new IllegalArgumentException("You have already voted in this poll");
+        }
+        if (multiSelect && vote != null && vote.getOptions() != null
+                && vote.getOptions().contains(trimmed)) {
+            throw new IllegalArgumentException("You have already selected this option");
+        }
+
         try {
             // saveAndFlush surfaces a concurrent unique-constraint violation
             // here so we can map it to a friendly conflict instead of a 500
             // (#14509).
-            pollVoteRepository.saveAndFlush(LiveAudiencePollVote.builder()
-                    .pollId(pollId)
-                    .userId(user.getId())
-                    .optionText(trimmed)
-                    .build());
+            if (vote == null) {
+                vote = LiveAudiencePollVote.builder()
+                        .pollId(pollId)
+                        .userId(user.getId())
+                        .optionText(trimmed)
+                        .options(new java.util.HashSet<>())
+                        .build();
+                vote.getOptions().add(trimmed);
+            } else {
+                vote.getOptions().add(trimmed);
+                if (vote.getOptionText() == null || vote.getOptionText().isBlank()) {
+                    vote.setOptionText(trimmed);
+                }
+            }
+            pollVoteRepository.saveAndFlush(vote);
         } catch (DataIntegrityViolationException ex) {
             throw new RegistrationConflictException("You have already voted in this poll");
         }
