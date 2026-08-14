@@ -115,13 +115,16 @@ const HostHackathon = () => {
       await hostHackathon({
         title: sanitizeInputText(formData.hackathonName),
         organizer: sanitizeInputText(formData.organizerName),
+        email: sanitizeInputText(formData.email),
         prizePool: sanitizeInputText(formData.prizeDetails),
         description: sanitizeInputText(formData.description),
         location: sanitizeInputText(formData.location),
+        participantLimit: sanitizeInputText(formData.participantLimit),
         startDate: formData.startDate,
         endDate: formData.endDate,
         mode: formData.mode,
         registrationDeadline,
+        website: sanitizeInputText(formData.website),
       });
 
       toast.success("Hackathon submitted successfully! It will be reviewed before going live.");
