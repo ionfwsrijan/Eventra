@@ -101,11 +101,11 @@ const E2EEVIPMessaging = () => {
                 </div>
                 <div>
                   <h3 className="text-white font-black text-sm">CEO, MegaCorp</h3>
-                  <div className="flex items-center mt-0.5 cursor-pointer" onClick={() => setKeyVerificationOpen(!keyVerificationOpen)}>
+                  <button type="button" className="flex items-center mt-0.5 cursor-pointer bg-transparent border-0 p-0" aria-expanded={keyVerificationOpen} onClick={() => setKeyVerificationOpen(!keyVerificationOpen)}>
                     <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-widest flex items-center">
                       <span className="mr-1">🔒</span> E2E Encrypted
                     </span>
-                  </div>
+                  </button>
                 </div>
               </div>
               <button className="text-slate-500 hover:text-white transition">⋮</button>
