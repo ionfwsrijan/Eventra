@@ -144,9 +144,9 @@ const AcousticsOptimizationEngine = () => {
                 
                 {engineState === 'idle' ? (
                   <div className="text-center w-full animate-fade-in">
-                    <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center mb-8 mx-auto border border-slate-700 shadow-lg group hover:border-sky-500 transition cursor-pointer" onClick={startAnalysis}>
+                    <button type="button" className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center mb-8 mx-auto border border-slate-700 shadow-lg group hover:border-sky-500 transition cursor-pointer" onClick={startAnalysis} aria-label="Start analysis">
                       <span className="text-4xl group-hover:scale-110 transition">📡</span>
-                    </div>
+                    </button>
                     <h3 className="text-xl font-black mb-2">Ready to calibrate.</h3>
                     <p className="text-slate-400 text-sm mb-12">Stand in the center of the room and ensure the PA system is unmuted.</p>
                     
