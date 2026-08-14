@@ -35,7 +35,7 @@ public class InMemoryTokenGraceStore implements TokenGraceStore {
         }
         pruneExpired(gracePeriodMs);
         if (graceMap.size() < maxEntries) {
-            graceMap.put(tokenHash, System.currentTimeMillis());
+            graceMap.putIfAbsent(tokenHash, System.currentTimeMillis());
         }
     }
 
