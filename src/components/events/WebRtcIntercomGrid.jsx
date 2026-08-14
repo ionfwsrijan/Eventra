@@ -50,7 +50,11 @@ const WebRtcIntercomGrid = () => {
       
       const peerNames = ['Prod_Dave', 'Sec_Chief', 'Med_Sarah', 'Light_Op', 'Rig_Tony', 'FOH_Mixer'];
       const numPeers = Math.floor(Math.random() * 4) + 2;
-      const shuffled = peerNames.sort(() => 0.5 - Math.random());
+      const shuffled = [...peerNames];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
       setChannelPeers(shuffled.slice(0, numPeers));
       
       addLog('SYS', `Joined WebRTC Mesh Room: ${currentChannel}. Peer count: ${numPeers}.`);
