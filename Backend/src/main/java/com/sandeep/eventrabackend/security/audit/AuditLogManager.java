@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -17,12 +18,12 @@ import java.util.stream.Collectors;
 public class AuditLogManager {
 
     private static final Logger logger = LoggerFactory.getLogger(AuditLogManager.class);
-    private static final int BLOCK_SIZE = 4;
 
     private final MerkleTreeHasher hasher;
     private final List<AuditLogEntry> currentBlockLogs = new CopyOnWriteArrayList<>();
     private final Map<String, Block> blocks = new LinkedHashMap<>();
     private final List<String> hashChain = new CopyOnWriteArrayList<>();
+    private final AtomicLong blockSequence = new AtomicLong(0);
 
     /**
      * Represents a single audit log entry
@@ -104,8 +105,9 @@ public class AuditLogManager {
     }
 
     /**
-     * Records an audit log action with metadata. When the block size threshold is reached,
-     * a new block is created with a Merkle root hash and added to the hash chain.
+     * Records an audit log action with metadata and immediately seals it into a
+     * block with a Merkle root hash, so every action (including the tail) is
+     * covered by the hash chain and never left uncommitted.
      *
      * @param action The action to record
      * @param metadata Optional metadata to include with the action
@@ -116,9 +118,7 @@ public class AuditLogManager {
         
         logger.debug("Recorded audit action: {} - {}", entry.getAction(), entry.getId());
 
-        if (currentBlockLogs.size() >= BLOCK_SIZE) {
-            createBlock();
-        }
+        createBlock();
     }
 
     /**
@@ -150,10 +150,10 @@ public class AuditLogManager {
     }
 
     /**
-     * Generates a unique block ID
+     * Generates a unique, monotonically increasing block ID.
      */
-    private static String generateBlockId() {
-        return "block_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8);
+    private String generateBlockId() {
+        return "block_" + blockSequence.incrementAndGet();
     }
 
     /**
@@ -170,7 +170,7 @@ public class AuditLogManager {
      * Gets all finalized blocks with their root hashes.
      */
     public Map<String, Block> getBlocks() {
-        return Collections.unmodifiableMap(blocks);
+        return Collections.unmodifiableMap(new LinkedHashMap<>(blocks));
     }
 
     /**
@@ -199,13 +199,12 @@ public class AuditLogManager {
 
     /**
      * Gets the block roots as a simple map (for backward compatibility).
+     * Returns a defensive, unmodifiable snapshot.
      */
     public Map<String, String> getBlockRoots() {
-        return blocks.entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        e -> e.getValue().getRootHash()
-                ));
+        Map<String, String> roots = new LinkedHashMap<>();
+        blocks.forEach((blockId, block) -> roots.put(blockId, block.getRootHash()));
+        return Collections.unmodifiableMap(roots);
     }
 
     /**
@@ -243,14 +242,16 @@ public class AuditLogManager {
         currentBlockLogs.clear();
         blocks.clear();
         hashChain.clear();
+        blockSequence.set(0);
         logger.info("All audit data cleared");
     }
 
     /**
-     * Gets a specific block by its ID.
+     * Gets a specific block by its ID (from a snapshot, so the caller never
+     * holds the live map reference).
      */
     public Block getBlock(String blockId) {
-        return blocks.get(blockId);
+        return getBlocks().get(blockId);
     }
 
     /**

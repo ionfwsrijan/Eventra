@@ -4,6 +4,8 @@ import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
@@ -18,6 +20,7 @@ import java.util.*;
 public class MerkleTreeHasher {
 
     private static final Logger logger = LoggerFactory.getLogger(MerkleTreeHasher.class);
+    private static final Charset UTF_8 = StandardCharsets.UTF_8;
 
     /**
      * Computes the Merkle Tree root hash from a list of log entries.
@@ -44,8 +47,7 @@ public class MerkleTreeHasher {
             for (int i = 0; i < currentLevel.size(); i += 2) {
                 String left = currentLevel.get(i);
                 String right = (i + 1 < currentLevel.size()) ? currentLevel.get(i + 1) : left;
-                String combined = left + right;
-                String hash = sha256(combined);
+                String hash = combineWithDomainSeparation(left, right);
                 nextLevel.add(hash);
             }
 
@@ -65,14 +67,52 @@ public class MerkleTreeHasher {
      * @throws RuntimeException if hashing fails
      */
     public String sha256(String base) {
+        return sha256(base.getBytes(UTF_8));
+    }
+
+    /**
+     * Computes SHA-256 hash of raw bytes.
+     *
+     * @param input Input bytes to hash
+     * @return Hex-encoded SHA-256 hash
+     * @throws RuntimeException if hashing fails
+     */
+    public String sha256(byte[] input) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(base.getBytes(StandardCharsets.UTF_8));
+            byte[] hash = digest.digest(input);
             return bytesToHex(hash);
         } catch (Exception ex) {
             logger.error("SHA-256 hashing failed", ex);
             throw new RuntimeException("Failed to compute SHA-256 hash", ex);
         }
+    }
+
+    /**
+     * Hashes two nodes together with domain separation so that
+     * {@code hash(a, b)} cannot collide with {@code hash(ab, "")} or similar
+     * concatenation ambiguities. Each operand is length-prefixed before being
+     * hashed, making the combination unambiguous.
+     *
+     * @param left  Left node
+     * @param right Right node
+     * @return Hex-encoded SHA-256 hash of the length-prefixed concatenation
+     */
+    private String combineWithDomainSeparation(String left, String right) {
+        byte[] a = left.getBytes(UTF_8);
+        byte[] b = right.getBytes(UTF_8);
+        ByteArrayOutputStream out = new ByteArrayOutputStream(a.length + b.length + 8);
+        writeLengthPrefixed(out, a);
+        writeLengthPrefixed(out, b);
+        return sha256(out.toByteArray());
+    }
+
+    private static void writeLengthPrefixed(ByteArrayOutputStream out, byte[] data) {
+        out.write((data.length >>> 24) & 0xFF);
+        out.write((data.length >>> 16) & 0xFF);
+        out.write((data.length >>> 8) & 0xFF);
+        out.write(data.length & 0xFF);
+        out.write(data, 0, data.length);
     }
 
     /**
@@ -163,7 +203,7 @@ public class MerkleTreeHasher {
         for (int i = 0; i < currentLevel.size(); i += 2) {
             String left = currentLevel.get(i);
             String right = (i + 1 < currentLevel.size()) ? currentLevel.get(i + 1) : left;
-            nextLevel.add(sha256(left + right));
+            nextLevel.add(combineWithDomainSeparation(left, right));
         }
 
         return nextLevel;
@@ -187,9 +227,9 @@ public class MerkleTreeHasher {
 
         for (String sibling : proof) {
             if (leafIndex % 2 == 0) {
-                currentHash = sha256(currentHash + sibling);
+                currentHash = combineWithDomainSeparation(currentHash, sibling);
             } else {
-                currentHash = sha256(sibling + currentHash);
+                currentHash = combineWithDomainSeparation(sibling, currentHash);
             }
             leafIndex = leafIndex / 2;
         }
@@ -209,7 +249,7 @@ public class MerkleTreeHasher {
         String previousHash = "";
 
         for (String rootHash : rootHashes) {
-            String chainedHash = sha256(previousHash + rootHash);
+            String chainedHash = combineWithDomainSeparation(previousHash, rootHash);
             chain.add(chainedHash);
             previousHash = chainedHash;
         }
@@ -232,7 +272,7 @@ public class MerkleTreeHasher {
         String previousHash = "";
 
         for (int i = 0; i < hashChain.size(); i++) {
-            String expectedHash = sha256(previousHash + rootHashes.get(i));
+            String expectedHash = combineWithDomainSeparation(previousHash, rootHashes.get(i));
             if (!expectedHash.equals(hashChain.get(i))) {
                 return false;
             }
