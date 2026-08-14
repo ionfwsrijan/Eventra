@@ -47,7 +47,7 @@ const FacialRecognitionFastTrack = () => {
             <div className="absolute inset-0 bg-black/30"></div>
 
             {scanStatus === 'idle' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 cursor-pointer" onClick={simulateScan}>
+              <div role="button" tabIndex={0} className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 cursor-pointer" onClick={simulateScan} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); simulateScan(); } }}>
                 <div className="w-24 h-24 rounded-full border-4 border-dashed border-blue-400 flex items-center justify-center mb-6 animate-pulse">
                   <span className="text-4xl">👱‍♀️</span>
                 </div>
