@@ -11,6 +11,8 @@ import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 /**
@@ -42,13 +44,13 @@ public class SubtitleService {
     /**
      * In-memory cache for recent subtitles (for low-latency access)
      */
-    private final Map<String, List<Subtitle>> eventSubtitleCache = new HashMap<>();
-    private final Map<String, List<Subtitle>> sessionSubtitleCache = new HashMap<>();
+    private final Map<String, List<Subtitle>> eventSubtitleCache = new ConcurrentHashMap<>();
+    private final Map<String, List<Subtitle>> sessionSubtitleCache = new ConcurrentHashMap<>();
     
     /**
      * Active subtitle sessions (for WebSocket/SSE streaming)
      */
-    private final Map<String, SubtitleSession> activeSessions = new HashMap<>();
+    private final Map<String, SubtitleSession> activeSessions = new ConcurrentHashMap<>();
     
     /**
      * Create a new subtitle
@@ -416,12 +418,12 @@ public class SubtitleService {
     private void addToCache(Subtitle subtitle) {
         // Add to event cache
         String eventKey = "event_" + subtitle.getEventId();
-        eventSubtitleCache.computeIfAbsent(eventKey, k -> new ArrayList<>()).add(subtitle);
+        eventSubtitleCache.computeIfAbsent(eventKey, k -> new CopyOnWriteArrayList<>()).add(subtitle);
         
         // Add to session cache
         if (subtitle.getSessionId() != null) {
             String sessionKey = "session_" + subtitle.getSessionId();
-            sessionSubtitleCache.computeIfAbsent(sessionKey, k -> new ArrayList<>()).add(subtitle);
+            sessionSubtitleCache.computeIfAbsent(sessionKey, k -> new CopyOnWriteArrayList<>()).add(subtitle);
         }
         
         // Limit cache size
@@ -483,14 +485,14 @@ public class SubtitleService {
         // Trim event cache — must update map entries, not reassign local variable
         eventSubtitleCache.forEach((key, subtitles) -> {
             if (subtitles.size() > maxHistorySize) {
-                eventSubtitleCache.put(key, new ArrayList<>(subtitles.subList(Math.max(0, subtitles.size() - maxHistorySize), subtitles.size())));
+                eventSubtitleCache.put(key, new CopyOnWriteArrayList<>(subtitles.subList(Math.max(0, subtitles.size() - maxHistorySize), subtitles.size())));
             }
         });
         
         // Trim session cache — must update map entries, not reassign local variable
         sessionSubtitleCache.forEach((key, subtitles) -> {
             if (subtitles.size() > bufferSize) {
-                sessionSubtitleCache.put(key, new ArrayList<>(subtitles.subList(Math.max(0, subtitles.size() - bufferSize), subtitles.size())));
+                sessionSubtitleCache.put(key, new CopyOnWriteArrayList<>(subtitles.subList(Math.max(0, subtitles.size() - bufferSize), subtitles.size())));
             }
         });
         
