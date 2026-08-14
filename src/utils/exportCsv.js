@@ -27,7 +27,7 @@
  * @param {*} field - Raw field value (will be coerced to string)
  * @returns {string} Quoted, escaped CSV field
  */
-const sanitizeCSVField = (field) => {
+export const sanitizeCSVField = (field) => {
   const value = String(field ?? "");
   // Prefix formula-trigger characters to prevent CSV injection
   const safeValue = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;

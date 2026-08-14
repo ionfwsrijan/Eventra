@@ -5,6 +5,8 @@
  * Now includes support for group/bulk check-ins.
  */
 
+import { sanitizeCSVField } from "./exportCsv";
+
 /**
  * Generates QR code data for a registration
  * @param {string} registrationId - Unique registration ID
@@ -287,7 +289,13 @@ export const generateCheckInCSV = (stats, registrations = [], checkIns = []) => 
     const name = (reg?.name || 'Unknown').replace(/,/g, ' ');
     const email = (reg?.email || 'unknown@example.com').replace(/,/g, ' ');
     const time = new Date(checkIn.timestamp).toLocaleString();
-    csv += `${checkIn.registrationId},${name},${email},${time},${checkIn.scannedBy}\n`;
+    csv += [
+      checkIn.registrationId,
+      name,
+      email,
+      time,
+      checkIn.scannedBy,
+    ].map((value) => sanitizeCSVField(value == null ? "" : String(value))).join(",") + "\n";
   });
 
   return csv;
