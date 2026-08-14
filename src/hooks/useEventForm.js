@@ -475,14 +475,16 @@ export const useEventForm = () => {
     }
 
     data.ticketTiers?.forEach((tier, index) => {
-      if (tier.name?.trim()) {
-        const price = Number(tier.price);
-        if (price < 0) newErrors[`ticketTier_${index}_price`] = "Price cannot be negative";
+      if (!tier.name?.trim()) {
+        newErrors[`ticketTier_${index}_name`] = "Tier name is required";
+        return;
+      }
+      const price = Number(tier.price);
+      if (!Number.isFinite(price) || price < 0) newErrors[`ticketTier_${index}_price`] = "Enter a valid, non-negative price";
 
-        if (tier.capacity) {
-          const cap = Number(tier.capacity);
-          if (cap <= 0 || !Number.isInteger(cap)) newErrors[`ticketTier_${index}_capacity`] = "Capacity must be a valid whole number greater than 0";
-        }
+      if (tier.capacity !== "" && tier.capacity != null) {
+        const cap = Number(tier.capacity);
+        if (!Number.isFinite(cap) || cap <= 0 || !Number.isInteger(cap)) newErrors[`ticketTier_${index}_capacity`] = "Capacity must be a valid whole number greater than 0";
       }
     });
 

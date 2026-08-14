@@ -95,17 +95,19 @@ export const validateForm = (formData) => {
   }
 
   if (formData.ticketTiers && formData.ticketTiers.length > 0) {
-    formData.ticketTiers.forEach((tier) => {
-      if (tier.name && tier.name.trim()) {
-        const price = Number(tier.price);
-        if (price < 0) {
-          newErrors[`ticketPrice_${tier.id}`] = "Ticket price cannot be negative";
-        }
-        if (tier.capacity) {
-          const capacity = Number(tier.capacity);
-          if (capacity <= 0) {
-            newErrors[`ticketCapacity_${tier.id}`] = "Ticket capacity must be greater than 0";
-          }
+    formData.ticketTiers.forEach((tier, index) => {
+      if (!tier.name || !tier.name.trim()) {
+        newErrors[`ticketName_${tier.id ?? index}`] = "Tier name is required";
+        return;
+      }
+      const price = Number(tier.price);
+      if (!Number.isFinite(price) || price < 0) {
+        newErrors[`ticketPrice_${tier.id ?? index}`] = "Enter a valid, non-negative price";
+      }
+      if (tier.capacity !== "" && tier.capacity != null) {
+        const capacity = Number(tier.capacity);
+        if (!Number.isFinite(capacity) || capacity <= 0) {
+          newErrors[`ticketCapacity_${tier.id ?? index}`] = "Capacity must be greater than 0";
         }
       }
     });
