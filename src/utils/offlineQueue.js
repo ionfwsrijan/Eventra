@@ -635,8 +635,11 @@ export const processQueueItem = async (item, fetchFn, options = {}) => {
 
       const response = await fetchFn(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(item.payload),
+        headers: {
+          "Content-Type": "application/json",
+          ...(item.idempotencyKey ? { "Idempotency-Key": item.idempotencyKey } : {}),
+        },
+        body: JSON.stringify({ ...item.payload, idempotencyKey: item.idempotencyKey }),
         signal: combinedSignal,
       });
 
