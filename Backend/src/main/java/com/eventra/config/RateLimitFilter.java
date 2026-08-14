@@ -13,13 +13,21 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
+    private static final long IDLE_TIMEOUT_MS = 10 * 60 * 1000L;
+    private static final long EVICTION_INTERVAL_MS = 60_000L;
+    private static final int MAX_BUCKETS = 100_000;
+
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private final Map<String, Long> lastAccess = new ConcurrentHashMap<>();
+    private final AtomicLong lastEvictionMillis = new AtomicLong(0L);
 
     private Bucket createNewBucket() {
         Bandwidth limit = Bandwidth.classic(10, Refill.greedy(10, Duration.ofMinutes(1)));
@@ -33,8 +41,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         if (path != null && path.matches("^/api/hackathons/[^/]+/register$") && "POST".equalsIgnoreCase(request.getMethod())) {
+            long now = System.currentTimeMillis();
+            maybeEvictIdleBuckets(now);
             String clientIp = getClientIp(request);
-            Bucket bucket = buckets.computeIfAbsent(clientIp, k -> createNewBucket());
+            Bucket bucket = buckets.computeIfAbsent(clientIp, k -> {
+                lastAccess.put(k, now);
+                return createNewBucket();
+            });
+            lastAccess.put(clientIp, now);
 
             if (!bucket.tryConsume(1)) {
                 response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
@@ -45,6 +59,25 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void maybeEvictIdleBuckets(long now) {
+        long lastEviction = lastEvictionMillis.get();
+        if (now - lastEviction <= EVICTION_INTERVAL_MS) {
+            return;
+        }
+        if (!lastEvictionMillis.compareAndSet(lastEviction, now)) {
+            return;
+        }
+        long minAgeMs = buckets.size() > MAX_BUCKETS ? EVICTION_INTERVAL_MS : IDLE_TIMEOUT_MS;
+        Iterator<Map.Entry<String, Long>> it = lastAccess.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, Long> entry = it.next();
+            if (now - entry.getValue() > minAgeMs) {
+                buckets.remove(entry.getKey());
+                it.remove();
+            }
+        }
     }
 
     private String getClientIp(HttpServletRequest request) {
